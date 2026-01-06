@@ -10,30 +10,11 @@
     --accent: #74b9ff;
     --card-radius: 20px;
     --bg-color: #5b73e8;
-    --chart-bar-color: #448aff;
 }
 
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-    outline: none;
-    -webkit-tap-highlight-color: transparent;
-    -webkit-user-select: none;
-    user-select: none;
-}
+* { box-sizing: border-box; margin: 0; padding: 0; outline: none; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
 input, textarea { -webkit-user-select: text; user-select: text; }
-
-body {
-    font-family: 'Vazirmatn', sans-serif;
-    background: var(--primary-gradient);
-    color: var(--text-main);
-    height: 100vh;
-    overflow: hidden;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
+body { font-family: 'Vazirmatn', sans-serif; background: var(--primary-gradient); color: var(--text-main); height: 100vh; overflow: hidden; display: flex; justify-content: center; align-items: center; }
 
 #loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: var(--bg-color); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: opacity 0.5s ease-out; }
 .loading-logo { width: 80px; height: 80px; border: 8px solid rgba(255, 255, 255, 0.3); border-top: 8px solid #fff; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 40px; }
@@ -42,7 +23,6 @@ body {
 .loading-bar { height: 100%; background: #fff; width: 0%; transition: width 0.3s ease-out; border-radius: 10px; }
 .loading-text { position: absolute; bottom: 25px; font-size: 12px; color: rgba(255, 255, 255, 0.8); }
 
-/* --- ONBOARDING SCREEN --- */
 #onboarding-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--primary-gradient); z-index: 5000; padding: 30px; display: flex; flex-direction: column; }
 .onboard-slide { display: none; flex-direction: column; height: 100%; justify-content: space-between; animation: fadeIn 0.4s ease; }
 .onboard-slide.active { display: flex; }
@@ -78,7 +58,6 @@ main::-webkit-scrollbar { display: none; }
 .account-icon { width: 35px; height: 35px; background: rgba(255,255,255,0.1); border-radius: 10px; display: flex; justify-content: center; align-items: center; color: #fff; }
 .account-name { font-size: 13px; font-weight: 500; }
 .account-balance { font-size: 14px; font-weight: 700; }
-
 .transactions-list { display: flex; flex-direction: column; gap: 12px; }
 .transaction-item { display: flex; align-items: center; background: var(--glass-bg); padding: 15px; border-radius: 16px; border: 1px solid var(--glass-border); transition: background 0.2s; }
 .transaction-item:hover { background: rgba(255,255,255,0.15); }
@@ -93,7 +72,6 @@ main::-webkit-scrollbar { display: none; }
 .bg-income { background: rgba(0, 230, 118, 0.2); color: var(--success); }
 .bg-expense { background: rgba(255, 82, 82, 0.2); color: var(--danger); }
 .bg-transfer { background: rgba(255, 171, 64, 0.2); color: var(--warning); }
-
 .bottom-nav { position: absolute; bottom: 0; width: 100%; height: 80px; background: rgba(20, 20, 20, 0.6); backdrop-filter: blur(20px); display: flex; justify-content: space-around; align-items: center; border-top: 1px solid var(--glass-border); z-index: 100; padding-bottom: 10px; }
 .nav-item { display: flex; flex-direction: column; align-items: center; color: var(--text-muted); cursor: pointer; transition: color 0.3s; gap: 4px; }
 .nav-item.active { color: #fff; }
@@ -101,16 +79,13 @@ main::-webkit-scrollbar { display: none; }
 .nav-item span { font-size: 11px; font-weight: 500; }
 .fab-add { width: 60px; height: 60px; background: #fff; border-radius: 50%; display: flex; justify-content: center; align-items: center; color: #764ba2; margin-top: -40px; box-shadow: 0 10px 20px rgba(0,0,0,0.3); cursor: pointer; transition: transform 0.2s; }
 .fab-add:active { transform: scale(0.95); }
-
 .view-section { display: none; animation: fadeIn 0.3s ease-in-out; }
 .view-section.active { display: block; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
 .search-container { margin-bottom: 20px; position: relative; }
 .search-input { width: 100%; background: var(--glass-bg); border: 1px solid var(--glass-border); padding: 15px 45px 15px 15px; border-radius: 15px; color: white; font-family: 'Vazirmatn'; font-size: 14px; }
 .search-input::placeholder { color: rgba(255,255,255,0.5); }
 .search-icon { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: rgba(255,255,255,0.5); }
-
 .btn-primary { width: 100%; background: #fff; color: #764ba2; border: none; padding: 15px; border-radius: 15px; font-family: 'Vazirmatn'; font-weight: 700; cursor: pointer; margin-top: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
 .modal-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); z-index: 200; display: none; justify-content: center; align-items: flex-end; }
 .modal-content { width: 100%; background: #2d2d3a; border-radius: 25px 25px 0 0; padding: 25px; color: #fff; animation: slideUp 0.3s ease-out; max-height: 90%; overflow-y: auto; }
@@ -129,7 +104,6 @@ main::-webkit-scrollbar { display: none; }
 .account-actions { display: flex; gap: 15px; }
 .account-actions i { cursor: pointer; color: var(--text-muted); transition: color 0.2s; }
 .account-actions i:hover { color: #fff; }
-
 .settings-group { background: var(--glass-bg); border-radius: 15px; border: 1px solid var(--glass-border); padding: 20px; margin-bottom: 20px; }
 .settings-header { font-size: 13px; font-weight: 700; margin-bottom: 15px; color: var(--accent); opacity: 0.9; }
 .settings-item { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; }
@@ -139,7 +113,6 @@ main::-webkit-scrollbar { display: none; }
 .btn-danger-outline { width: 100%; background: transparent; border: 1px solid var(--danger); color: var(--danger); padding: 12px; border-radius: 12px; font-family: 'Vazirmatn'; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; transition: all 0.2s; }
 .btn-primary-outline { width: 100%; background: transparent; border: 1px solid var(--accent); color: var(--accent); padding: 12px; border-radius: 12px; font-family: 'Vazirmatn'; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; transition: all 0.2s; }
 .btn-secondary { flex: 1; background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.1); padding: 12px; border-radius: 12px; font-family: 'Vazirmatn'; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; font-size: 13px; }
-
 .toast-container { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); z-index: 1000; width: 90%; max-width: 400px; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
 .toast { background: rgba(45, 45, 58, 0.95); color: #fff; padding: 12px 20px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); font-size: 13px; display: flex; align-items: center; gap: 10px; animation: slideUpFade 0.3s ease-out; border: 1px solid rgba(255,255,255,0.1); pointer-events: all; }
 @keyframes slideUpFade { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
@@ -152,7 +125,6 @@ main::-webkit-scrollbar { display: none; }
 .selection-item { padding: 15px; background: rgba(255,255,255,0.05); border-radius: 12px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: background 0.2s; }
 .selection-item:active { background: rgba(255,255,255,0.15); }
 .selection-item i { opacity: 0.7; }
-
 .budget-entry-btn { background: linear-gradient(135deg, #448aff 0%, #2962ff 100%); padding: 15px; border-radius: 20px; display: flex; align-items: center; gap: 15px; margin-bottom: 20px; cursor: pointer; box-shadow: 0 5px 15px rgba(41, 98, 255, 0.3); transition: transform 0.2s; }
 .budget-entry-btn:active { transform: scale(0.98); }
 .budget-icon-box { width: 45px; height: 45px; background: rgba(255,255,255,0.2); border-radius: 12px; display: flex; justify-content: center; align-items: center; }
@@ -182,3 +154,33 @@ main::-webkit-scrollbar { display: none; }
 .cat-amount { font-weight: 700; font-size: 13px; }
 .cat-progress-bg { height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; width: 100%; overflow: hidden; }
 .cat-progress-fill { height: 100%; background: #448aff; border-radius: 3px; }
+
+/* --- LOAN STYLES --- */
+.loan-card { background: var(--glass-bg); padding: 20px; border-radius: 20px; border: 1px solid var(--glass-border); position: relative; overflow: hidden; cursor: pointer; transition: transform 0.2s; }
+.loan-card:hover { transform: translateY(-3px); background: rgba(255,255,255,0.15); }
+.loan-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
+.loan-status-badge { font-size: 10px; padding: 4px 8px; border-radius: 10px; background: rgba(0,0,0,0.3); color: var(--text-muted); }
+.loan-bank-name { font-size: 12px; color: var(--text-muted); margin-bottom: 5px; }
+.loan-title { font-size: 16px; font-weight: 700; }
+.loan-progress-container { margin-top: 15px; }
+.loan-progress-bar { height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; margin-bottom: 5px; }
+.loan-progress-fill { height: 100%; background: var(--warning); border-radius: 3px; }
+.loan-progress-text { font-size: 11px; display: flex; justify-content: space-between; color: var(--text-muted); }
+
+.fab-add-float { position: fixed; bottom: 100px; left: 20px; width: 55px; height: 55px; background: var(--warning); border-radius: 50%; display: flex; justify-content: center; align-items: center; color: #fff; box-shadow: 0 5px 15px rgba(255, 171, 64, 0.4); border: none; cursor: pointer; transition: transform 0.2s; z-index: 100; }
+.fab-add-float:active { transform: scale(0.95); }
+
+/* Timeline */
+.timeline-container { position: relative; padding: 20px 0; }
+.timeline-container::before { content: ''; position: absolute; top: 0; right: 20px; height: 100%; width: 2px; background: rgba(255,255,255,0.1); }
+.timeline-item { position: relative; padding-right: 45px; margin-bottom: 25px; cursor: pointer; }
+.timeline-point { position: absolute; top: 0; right: 13px; width: 16px; height: 16px; border-radius: 50%; background: #2d2d3a; border: 2px solid rgba(255,255,255,0.3); z-index: 2; transition: all 0.3s; }
+.timeline-item.paid .timeline-point { background: var(--success); border-color: var(--success); box-shadow: 0 0 10px rgba(0, 230, 118, 0.5); }
+.timeline-date { font-size: 12px; color: var(--text-muted); margin-bottom: 5px; }
+.timeline-card { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 15px; border: 1px solid rgba(255,255,255,0.05); }
+.timeline-header { display: flex; justify-content: space-between; margin-bottom: 5px; }
+.timeline-title { font-weight: 500; font-size: 13px; }
+.timeline-amount { font-weight: 700; font-size: 14px; }
+.timeline-status { font-size: 10px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
+.timeline-item.paid .timeline-status { color: var(--success); }
+.loan-summary-card { background: linear-gradient(135deg, #006064 0%, #00838f 100%); border-radius: 20px; padding: 25px; text-align: center; margin-bottom: 25px; box-shadow: 0 8px 32px rgba(0, 96, 100, 0.4); }

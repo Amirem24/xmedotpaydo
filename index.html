@@ -89,7 +89,7 @@
             <div class="transactions-list" id="recent-transactions"></div>
         </div>
 
-        <!-- TOOLS VIEW (NEW) -->
+        <!-- TOOLS VIEW -->
         <div id="view-tools" class="view-section">
             <div class="section-title" style="margin-top: 10px;">ابزارها</div>
             
@@ -104,9 +104,21 @@
                     <i class="material-icons" style="margin-right:auto; color:rgba(255,255,255,0.5)">chevron_left</i>
                 </div>
             </div>
+
+            <!-- Loan Management Entry -->
+            <div class="settings-group">
+                <div class="settings-item" onclick="switchView('loans')" style="cursor: pointer; margin-bottom: 0;">
+                    <div class="settings-icon" style="color:#ff5252"><i class="material-icons">account_balance</i></div>
+                    <div class="settings-info">
+                        <h4>وام من</h4>
+                        <p>مدیریت اقساط، یادآوری و وضعیت پرداخت</p>
+                    </div>
+                    <i class="material-icons" style="margin-right:auto; color:rgba(255,255,255,0.5)">chevron_left</i>
+                </div>
+            </div>
         </div>
 
-        <!-- ASSETS VIEW (NEW) -->
+        <!-- ASSETS VIEW -->
         <div id="view-assets" class="view-section">
             <div class="section-title" style="margin-top: 10px; cursor: pointer;" onclick="switchView('tools')">
                 <div style="display: flex; align-items: center; gap: 5px;">
@@ -114,20 +126,58 @@
                     <span>بازگشت به ابزارها</span>
                 </div>
             </div>
-
             <div class="balance-card" style="background: linear-gradient(135deg, #2b32b2 0%, #1488cc 100%);">
                 <div class="balance-label">ارزش کل دارایی‌های غیرنقدی</div>
                 <div class="balance-amount" id="total-assets-value">۰ <span class="currency">تومان</span></div>
                 <div style="font-size: 11px; opacity: 0.7; margin-top: 10px;">* این مبلغ در موجودی کل حساب‌ها محاسبه نمی‌شود</div>
             </div>
-
             <div class="section-title" style="justify-content: flex-end;">
                 <button onclick="openAddAssetModal()" style="background:none; border:none; color:#fff; cursor:pointer; font-family: inherit;">
                     <i class="material-icons" style="vertical-align: middle;">add_circle_outline</i> افزودن دارایی
                 </button>
             </div>
-            
             <div id="assets-list-container"></div>
+        </div>
+
+        <!-- LOANS LIST VIEW (NEW) -->
+        <div id="view-loans" class="view-section">
+            <div class="section-title" style="margin-top: 10px; cursor: pointer;" onclick="switchView('tools')">
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <i class="material-icons">arrow_forward</i>
+                    <span>بازگشت به ابزارها</span>
+                </div>
+            </div>
+            
+            <div id="loans-list-container" style="display: flex; flex-direction: column; gap: 15px;"></div>
+            
+            <button class="fab-add-float" onclick="openAddLoanModal()">
+                <i class="material-icons">add</i>
+            </button>
+        </div>
+
+        <!-- LOAN DETAILS VIEW (NEW) -->
+        <div id="view-loan-details" class="view-section">
+            <div class="section-title" style="margin-top: 10px; cursor: pointer;" onclick="switchView('loans')">
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <i class="material-icons">arrow_forward</i>
+                    <span>لیست وام‌ها</span>
+                </div>
+            </div>
+
+            <!-- Loan Summary Card -->
+            <div class="loan-summary-card" id="loan-summary-card">
+                <!-- Injected via JS -->
+            </div>
+
+            <div class="section-title">لیست اقساط</div>
+            <div class="timeline-container" id="loan-timeline">
+                <!-- Timeline injected via JS -->
+            </div>
+            
+            <!-- Delete Button -->
+            <button class="btn-danger-outline" id="btn-delete-loan" style="margin-top: 30px; margin-bottom: 20px;">
+                <i class="material-icons">delete</i> حذف این وام
+            </button>
         </div>
 
         <!-- HISTORY VIEW -->
@@ -186,7 +236,7 @@
             <div id="budget-categories-list" class="budget-categories-list"></div>
         </div>
 
-        <!-- ACCOUNTS VIEW -->
+        <!-- ACCOUNTS & SETTINGS (Same as before) -->
         <div id="view-accounts" class="view-section">
             <div class="section-title" style="margin-top: 10px; justify-content: flex-end; gap:10px;">
                 <button onclick="openAddAccountModal()" style="background:none; border:none; color:#fff; cursor:pointer; font-family: inherit;">
@@ -196,7 +246,6 @@
             <div id="accounts-list-full"></div>
         </div>
 
-        <!-- SETTINGS VIEW -->
         <div id="view-settings" class="view-section">
             <div class="section-title" style="margin-top: 10px;">تنظیمات</div>
             <div class="settings-group">
@@ -241,7 +290,7 @@
                     <div class="settings-icon"><i class="material-icons">system_update</i></div>
                     <div class="settings-info">
                         <h4>نسخه برنامه</h4>
-                        <p>v2.2.0 (Paydo)</p>
+                        <p>v2.3.0 (Paydo)</p>
                     </div>
                 </div>
                 <button class="btn-primary-outline" onclick="checkForUpdate()">بررسی و دریافت نسخه جدید</button>
@@ -262,7 +311,6 @@
         <div class="fab-add" onclick="openAddTransactionModal()">
             <i class="material-icons">add</i>
         </div>
-        <!-- CHANGED: Reports -> Tools -->
         <div class="nav-item" onclick="switchView('tools')" id="nav-tools">
             <i class="material-icons">grid_view</i>
             <span>ابزار</span>
@@ -276,7 +324,8 @@
     <!-- TOAST CONTAINER -->
     <div class="toast-container" id="toast-container"></div>
 
-    <!-- MODALS (Existing: Confirm, Selection, Transaction, Account, Categories) -->
+    <!-- MODALS -->
+    <!-- (Asset, Confirm, Selection, Transaction, Account, Categories - Same as before) -->
     <div class="modal-overlay" id="modal-confirm" style="z-index: 2000;">
         <div class="modal-content">
             <div class="modal-header"><h3 id="confirm-title">عنوان تایید</h3></div>
@@ -328,21 +377,50 @@
             </form>
         </div>
     </div>
-
-    <!-- NEW MODAL: ASSET ADD/EDIT -->
     <div class="modal-overlay" id="modal-asset">
         <div class="modal-content">
             <div class="modal-header"><h3 id="modal-asset-title">افزودن دارایی</h3><button class="close-modal" onclick="closeModal('modal-asset')">&times;</button></div>
             <form id="form-asset">
-                <div class="form-group">
-                    <label class="form-label">نام دارایی</label>
-                    <input type="text" id="asset-name" class="form-input" placeholder="مثلا: سکه طلا، دلار، بیت‌کوین" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">ارزش نقدی فعلی (تومان)</label>
-                    <input type="text" inputmode="numeric" id="asset-value" class="form-input money-input" placeholder="۰" required>
-                </div>
+                <div class="form-group"><label class="form-label">نام دارایی</label><input type="text" id="asset-name" class="form-input" placeholder="مثلا: سکه طلا، دلار، بیت‌کوین" required></div>
+                <div class="form-group"><label class="form-label">ارزش نقدی فعلی (تومان)</label><input type="text" inputmode="numeric" id="asset-value" class="form-input money-input" placeholder="۰" required></div>
                 <button type="submit" class="btn-primary" id="btn-save-asset">ذخیره دارایی</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- NEW MODAL: ADD LOAN -->
+    <div class="modal-overlay" id="modal-loan">
+        <div class="modal-content">
+            <div class="modal-header"><h3 id="modal-loan-title">افزودن وام جدید</h3><button class="close-modal" onclick="closeModal('modal-loan')">&times;</button></div>
+            <form id="form-loan">
+                <div class="form-group">
+                    <label class="form-label">نام بانک / عنوان وام</label>
+                    <input type="text" id="loan-bank" class="form-input" placeholder="مثلا: بانک ملت - وام خودرو" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">مبلغ کل بازپرداخت (اصل + سود)</label>
+                    <input type="text" inputmode="numeric" id="loan-total" class="form-input money-input" placeholder="۰" required>
+                </div>
+                <div class="form-group" style="display:flex; gap:10px;">
+                    <div style="flex:1;">
+                        <label class="form-label">تعداد اقساط</label>
+                        <input type="number" id="loan-count" class="form-input" placeholder="مثلا: 12" required>
+                    </div>
+                    <div style="flex:1;">
+                         <!-- Start Date: Simplification, using Year/Month inputs due to no datepicker library -->
+                         <label class="form-label">شروع (سال/ماه)</label>
+                         <div style="display:flex; gap:5px;">
+                            <input type="number" id="loan-start-year" class="form-input" placeholder="1403" style="text-align:center;" value="1403">
+                            <input type="number" id="loan-start-month" class="form-input" placeholder="01" style="text-align:center;">
+                         </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">مبلغ هر قسط (تومان)</label>
+                    <input type="text" inputmode="numeric" id="loan-installment-amount" class="form-input money-input" placeholder="محاسبه خودکار..." required>
+                    <div style="font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 5px;">می‌توانید مبلغ محاسبه شده را تغییر دهید.</div>
+                </div>
+                <button type="submit" class="btn-primary" id="btn-save-loan">ایجاد وام</button>
             </form>
         </div>
     </div>

@@ -6,18 +6,29 @@ function formatMoney(amount) { if (amount === null || amount === undefined) retu
 function getPersianDateParts(timestamp) { const date = new Date(timestamp); const formatter = new Intl.DateTimeFormat('fa-IR-u-nu-latn', { year: 'numeric', month: '2-digit', day: '2-digit' }); const parts = formatter.formatToParts(date); const y = parts.find(p => p.type === 'year').value; const m = parts.find(p => p.type === 'month').value; const d = parts.find(p => p.type === 'day').value; return { year: parseInt(y), month: parseInt(m), day: parseInt(d) }; }
 function getPersianMonthName(monthIndex) { const months = ["فروردین","اردیبهشت","خرداد","تیر","مرداد","شهریور","مهر","آبان","آذر","دی","بهمن","اسفند"]; return months[monthIndex - 1] || ""; }
 
+// Helper to add months to a simple Persian Date (Year/Month)
+function addPersianMonths(year, month, monthsToAdd) {
+    let totalMonths = month + monthsToAdd;
+    let addedYears = Math.floor((totalMonths - 1) / 12);
+    let newYear = year + addedYears;
+    let newMonth = ((totalMonths - 1) % 12) + 1;
+    return { year: newYear, month: newMonth };
+}
+
 // --- STATE ---
 let state = {
     accounts: [{ id: 1, name: 'کیف پول نقدی', type: 'cash', balance: 0 }],
     transactions: [],
-    assets: [], // New Assets Array
+    assets: [], 
+    loans: [], // Loans Array
     currentTransType: 'expense',
     budgetMonthOffset: 0,
     budgetType: 'expense'
 };
 
 let editingAccountId = null;
-let editingAssetId = null; // Track asset edit
+let editingAssetId = null; 
+let currentLoanId = null; // Track which loan is being viewed
 const DB_NAME = 'poolaki_data_v2';
 
 // --- UI UTILS ---
@@ -34,9 +45,26 @@ document.addEventListener('DOMContentLoaded', () => {
         setupInputFormatters();
         document.getElementById('form-transaction').addEventListener('submit', saveTransaction);
         document.getElementById('form-account').addEventListener('submit', saveAccount);
-        document.getElementById('form-asset').addEventListener('submit', saveAsset); // New Listener
+        document.getElementById('form-asset').addEventListener('submit', saveAsset);
+        document.getElementById('form-loan').addEventListener('submit', saveLoan); // Loan Listener
         document.getElementById('transaction-search').addEventListener('input', filterTransactions);
         
+        // Auto-calc installment amount
+        const calcInstallment = () => {
+            const total = cleanNumber(document.getElementById('loan-total').value);
+            const count = parseInt(document.getElementById('loan-count').value) || 0;
+            if(total > 0 && count > 0) {
+                document.getElementById('loan-installment-amount').value = formatMoney(Math.ceil(total / count));
+            }
+        };
+        document.getElementById('loan-total').addEventListener('input', calcInstallment);
+        document.getElementById('loan-count').addEventListener('input', calcInstallment);
+        
+        // Delete Loan Button
+        document.getElementById('btn-delete-loan').addEventListener('click', () => {
+             if(currentLoanId) deleteLoan(currentLoanId);
+        });
+
         setTimeout(() => {
             renderDashboard();
             updateLoading(80, 'پردازش تراکنش‌ها...');
@@ -61,7 +89,8 @@ document.addEventListener('DOMContentLoaded', () => {
 function loadData() {
     const saved = localStorage.getItem(DB_NAME);
     if (saved) { try { state = JSON.parse(saved); } catch (e) { console.error('Data corruption'); showToast('خطا در خواندن اطلاعات', 'error'); } }
-    if(!state.assets) state.assets = []; // Ensure assets array exists
+    if(!state.assets) state.assets = [];
+    if(!state.loans) state.loans = []; // Ensure loans array exists
     if(typeof state.budgetMonthOffset === 'undefined') state.budgetMonthOffset = 0;
     if(typeof state.budgetType === 'undefined') state.budgetType = 'expense';
 }
@@ -72,7 +101,9 @@ function saveData() {
     renderHistory();
     renderAccountsList();
     if(document.getElementById('view-budget').classList.contains('active')) renderBudget();
-    if(document.getElementById('view-assets').classList.contains('active')) renderAssets(); // Render assets if viewing
+    if(document.getElementById('view-assets').classList.contains('active')) renderAssets();
+    if(document.getElementById('view-loans').classList.contains('active')) renderLoansList();
+    if(document.getElementById('view-loan-details').classList.contains('active') && currentLoanId) renderLoanDetails(currentLoanId);
 }
 
 function setupInputFormatters() {
@@ -84,26 +115,17 @@ function setupInputFormatters() {
     });
 }
 
-// --- ONBOARDING ---
-window.nextOnboarding = function() { document.getElementById('slide-welcome').classList.remove('active'); document.getElementById('slide-setup').classList.add('active'); }
-window.prevOnboarding = function() { document.getElementById('slide-setup').classList.remove('active'); document.getElementById('slide-welcome').classList.add('active'); }
-window.finishOnboarding = function() { localStorage.setItem('paydo_setup_complete', 'true'); document.getElementById('onboarding-screen').style.transition = 'opacity 0.5s'; document.getElementById('onboarding-screen').style.opacity = '0'; document.getElementById('app-container').style.opacity = '1'; setTimeout(() => { document.getElementById('onboarding-screen').style.display = 'none'; }, 500); }
-
-// --- NAV ---
+// --- NAVIGATION ---
 function switchView(viewName) {
     document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
     document.getElementById(`view-${viewName}`).classList.add('active');
     
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
     
-    // Map logic for nav highlights
     let navId = `nav-${viewName}`;
-    if (viewName === 'budget') navId = 'nav-history'; // Budget is sub-page of history/reports (logically, though entered via button)
-    // Actually, user wants "Reports" removed from nav, "Tools" added. 
-    // "History" is "See All" from dashboard.
-    // "Tools" is nav item.
-    if (viewName === 'history') navId = 'nav-dashboard'; // Or keep it highlighted if we want. But usually "See All" keeps dashboard or no highlight? Let's highlight nothing or dashboard. Let's stick to Dashboard as parent.
-    if (viewName === 'assets') navId = 'nav-tools';
+    if (viewName === 'budget') navId = 'nav-history'; 
+    if (viewName === 'history') navId = 'nav-dashboard';
+    if (viewName === 'assets' || viewName === 'loans' || viewName === 'loan-details') navId = 'nav-tools';
     
     const navItem = document.getElementById(navId);
     if(navItem) navItem.classList.add('active');
@@ -114,172 +136,178 @@ function switchView(viewName) {
     if(viewName === 'budget') renderBudget();
     if(viewName === 'settings') calculateStorage();
     if(viewName === 'assets') renderAssets();
+    if(viewName === 'loans') renderLoansList();
 }
 
-// --- ASSETS LOGIC (NEW) ---
-function renderAssets() {
-    const container = document.getElementById('assets-list-container');
+// --- LOANS LOGIC ---
+function renderLoansList() {
+    const container = document.getElementById('loans-list-container');
     container.innerHTML = '';
     
-    let totalAssets = 0;
-    
-    if (state.assets.length === 0) {
-        container.innerHTML = '<div class="empty-state"><i class="material-icons">monetization_on</i><br>دارایی ثبت نشده</div>';
+    if (state.loans.length === 0) {
+        container.innerHTML = '<div class="empty-state"><i class="material-icons">account_balance</i><br>وامی ثبت نشده است</div>';
     } else {
-        state.assets.forEach(asset => {
-            totalAssets += asset.value;
+        state.loans.forEach(loan => {
+            const paidCount = loan.installments.filter(i => i.isPaid).length;
+            const totalCount = loan.installments.length;
+            const progress = (paidCount / totalCount) * 100;
+            const lastInstallment = loan.installments[totalCount - 1];
+            
             const div = document.createElement('div');
-            div.className = 'account-manage-item'; // Reuse styling
+            div.className = 'loan-card';
+            div.onclick = () => openLoanDetails(loan.id);
             div.innerHTML = `
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <div class="account-icon" style="background:rgba(255,215,0,0.15); color:#ffd700;">
-                        <i class="material-icons">savings</i>
-                    </div>
-                    <div>
-                        <div style="font-weight:700">${asset.name}</div>
-                        <div style="font-size:12px; color:rgba(255,255,255,0.6)">ارزش: ${formatMoney(asset.value)} تومان</div>
-                    </div>
+                <div class="loan-card-header">
+                    <div class="loan-status-badge">${toPersianNum(paidCount)} از ${toPersianNum(totalCount)} پرداخت شده</div>
+                    <div style="font-size:11px; opacity:0.6;">اتمام: ${toPersianNum(lastInstallment.year)}/${toPersianNum(lastInstallment.month)}</div>
                 </div>
-                <div class="account-actions">
-                    <i class="material-icons" onclick="openEditAssetModal(${asset.id})">edit</i>
-                    <i class="material-icons" onclick="deleteAsset(${asset.id})">delete</i>
+                <div class="loan-bank-name">${loan.bankName}</div>
+                <div class="loan-title">${formatMoney(loan.totalAmount)} تومان</div>
+                <div class="loan-progress-container">
+                    <div class="loan-progress-bar">
+                        <div class="loan-progress-fill" style="width: ${progress}%"></div>
+                    </div>
                 </div>
             `;
             container.appendChild(div);
         });
     }
-    
-    document.getElementById('total-assets-value').innerHTML = `${formatMoney(totalAssets)} <span class="currency">تومان</span>`;
 }
 
-window.openAddAssetModal = function() {
-    editingAssetId = null;
-    document.getElementById('modal-asset-title').innerText = 'افزودن دارایی';
-    document.getElementById('btn-save-asset').innerText = 'ذخیره دارایی';
-    document.getElementById('form-asset').reset();
-    document.getElementById('modal-asset').style.display = 'flex';
+window.openAddLoanModal = function() {
+    document.getElementById('form-loan').reset();
+    document.getElementById('loan-start-year').value = 1403; // Default year
+    document.getElementById('modal-loan').style.display = 'flex';
 }
 
-window.openEditAssetModal = function(id) {
-    editingAssetId = id;
-    const asset = state.assets.find(a => a.id === id);
-    if(!asset) return;
-    document.getElementById('modal-asset-title').innerText = 'ویرایش دارایی';
-    document.getElementById('btn-save-asset').innerText = 'ذخیره تغییرات';
-    document.getElementById('asset-name').value = asset.name;
-    document.getElementById('asset-value').value = formatMoney(asset.value);
-    document.getElementById('modal-asset').style.display = 'flex';
-}
-
-function saveAsset(e) {
+function saveLoan(e) {
     e.preventDefault();
-    const name = document.getElementById('asset-name').value;
-    const value = cleanNumber(document.getElementById('asset-value').value);
-
-    if (editingAssetId) {
-        const idx = state.assets.findIndex(a => a.id === editingAssetId);
-        if(idx !== -1) {
-            state.assets[idx].name = name;
-            state.assets[idx].value = value;
-            showToast('دارایی ویرایش شد', 'success');
-        }
-    } else {
-        state.assets.push({ id: Date.now(), name: name, value: value });
-        showToast('دارایی جدید افزوده شد', 'success');
-    }
-    saveData();
-    closeModal('modal-asset');
-    document.getElementById('form-asset').reset();
-}
-
-window.deleteAsset = function(id) {
-    showConfirm('حذف دارایی', 'آیا از حذف این دارایی مطمئن هستید؟', () => {
-        state.assets = state.assets.filter(a => a.id !== id);
-        saveData();
-        showToast('دارایی حذف شد', 'success');
-    });
-}
-
-// --- DASHBOARD & OTHERS ---
-function renderDashboard() {
-    // Note: Dashboard TOTAL only includes ACCOUNTS, not ASSETS
-    const total = state.accounts.reduce((sum, acc) => sum + acc.balance, 0);
-    document.getElementById('total-balance').innerHTML = `${formatMoney(total)} <span class="currency">تومان</span>`;
+    const bank = document.getElementById('loan-bank').value;
+    const total = cleanNumber(document.getElementById('loan-total').value);
+    const count = parseInt(document.getElementById('loan-count').value);
+    const startYear = parseInt(document.getElementById('loan-start-year').value);
+    const startMonth = parseInt(document.getElementById('loan-start-month').value);
+    const instAmount = cleanNumber(document.getElementById('loan-installment-amount').value);
     
-    const accountsContainer = document.getElementById('accounts-container');
-    accountsContainer.innerHTML = '';
-    if (state.accounts.length === 0) accountsContainer.innerHTML = '<div style="color:white; opacity:0.7; padding:10px;">حسابی وجود ندارد</div>';
-    state.accounts.forEach(acc => {
-        const el = document.createElement('div');
-        el.className = 'account-card';
-        el.innerHTML = `<div class="account-icon"><i class="material-icons">${acc.type === 'cash' ? 'account_balance_wallet' : 'credit_card'}</i></div><div class="account-name">${acc.name}</div><div class="account-balance">${formatMoney(acc.balance)}</div>`;
-        accountsContainer.appendChild(el);
+    if(!bank || !total || !count || !startYear || !startMonth || !instAmount) {
+        showToast('لطفا همه فیلدها را پر کنید', 'error');
+        return;
+    }
+
+    // Generate Installments
+    let installments = [];
+    for(let i = 0; i < count; i++) {
+        const date = addPersianMonths(startYear, startMonth, i);
+        installments.push({
+            id: i + 1,
+            year: date.year,
+            month: date.month,
+            amount: instAmount,
+            isPaid: false
+        });
+    }
+
+    state.loans.push({
+        id: Date.now(),
+        bankName: bank,
+        totalAmount: total,
+        installments: installments
     });
-    const recentContainer = document.getElementById('recent-transactions');
-    recentContainer.innerHTML = '';
-    const recent = [...state.transactions].sort((a,b) => b.timestamp - a.timestamp).slice(0, 5);
-    if (recent.length === 0) recentContainer.innerHTML = '<div class="empty-state"><i class="material-icons">receipt</i><br>تراکنشی ثبت نشده</div>';
-    else recent.forEach(t => recentContainer.appendChild(createTransactionEl(t)));
+
+    saveData();
+    closeModal('modal-loan');
+    showToast('وام جدید ایجاد شد', 'success');
 }
 
-function renderHistory(filterText = '') {
-    const container = document.getElementById('all-transactions');
-    container.innerHTML = '';
-    const all = [...state.transactions].sort((a,b) => b.timestamp - a.timestamp);
-    const filtered = all.filter(t => t.title.includes(filterText) || t.amount.toString().includes(filterText) || toPersianNum(t.amount).includes(filterText) || (t.tags && t.tags.some(tag => tag.includes(filterText))));
-    if (filtered.length === 0) container.innerHTML = '<div class="empty-state"><i class="material-icons">search_off</i><br>تراکنشی یافت نشد</div>';
-    else filtered.forEach(t => container.appendChild(createTransactionEl(t)));
+window.openLoanDetails = function(id) {
+    currentLoanId = id;
+    renderLoanDetails(id);
+    switchView('loan-details');
 }
 
-function createTransactionEl(t) {
-    const div = document.createElement('div');
-    div.className = 'transaction-item';
-    let iconClass = '', icon = 'help_outline', amountColorClass = '', sign = '';
-    if (t.type === 'expense') { icon = 'trending_down'; iconClass = 'bg-expense'; amountColorClass = 'expense'; sign = '-'; } 
-    else if (t.type === 'income') { icon = 'trending_up'; iconClass = 'bg-income'; amountColorClass = 'income'; sign = '+'; } 
-    else { icon = 'swap_horiz'; iconClass = 'bg-transfer'; amountColorClass = 'transfer'; sign = ''; }
-    const tagsHtml = (t.tags || []).join(' ');
-    div.innerHTML = `
-        <div class="trans-icon-box ${iconClass}"><i class="material-icons">${icon}</i></div>
-        <div class="trans-details">
-            <div class="trans-title">${t.title}</div>
-            <div class="trans-meta"><i class="material-icons" style="font-size:12px">account_balance_wallet</i> ${getAccountName(t.accountId)} ${t.targetAccountId ? `<i class="material-icons" style="font-size:12px; margin-right:5px">arrow_back</i> ${getAccountName(t.targetAccountId)}` : ''} <span style="margin: 0 5px">•</span> ${toPersianNum(t.date)}</div>
-            ${tagsHtml ? `<div style="font-size:11px; color:rgba(255,255,255,0.5); margin-top:4px;">${tagsHtml}</div>` : ''}
+function renderLoanDetails(id) {
+    const loan = state.loans.find(l => l.id === id);
+    if(!loan) return;
+
+    const paidInst = loan.installments.filter(i => i.isPaid);
+    const paidAmount = paidInst.reduce((sum, i) => sum + i.amount, 0);
+    const remainingAmount = loan.totalAmount - paidAmount;
+    const paidCount = paidInst.length;
+    const totalCount = loan.installments.length;
+
+    // Render Summary Card
+    document.getElementById('loan-summary-card').innerHTML = `
+        <h2 style="margin-bottom:5px;">${loan.bankName}</h2>
+        <div style="font-size:12px; opacity:0.8; margin-bottom:20px;">مبلغ کل: ${formatMoney(loan.totalAmount)} تومان</div>
+        
+        <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:13px;">
+            <span>پرداختی شما</span>
+            <span style="font-weight:700">${formatMoney(paidAmount)}</span>
         </div>
-        <div class="trans-amount ${amountColorClass}">${sign}${formatMoney(t.amount)}</div>`;
-    return div;
-}
-
-function renderAccountsList() {
-    const generateItemHTML = (acc) => `
-        <div style="display:flex; align-items:center; gap:10px;">
-            <div class="account-icon" style="background:rgba(255,255,255,0.1)"><i class="material-icons">${acc.type === 'cash' ? 'account_balance_wallet' : 'credit_card'}</i></div>
-            <div><div style="font-weight:700">${acc.name}</div><div style="font-size:12px; color:rgba(255,255,255,0.6)">موجودی: ${formatMoney(acc.balance)}</div></div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:20px; font-size:13px;">
+            <span>باقیمانده</span>
+            <span style="font-weight:700">${formatMoney(remainingAmount)}</span>
         </div>
-        <div class="account-actions"><i class="material-icons" onclick="openEditAccountModal(${acc.id})">edit</i><i class="material-icons" onclick="deleteAccount(${acc.id})">delete</i></div>
+        
+        <div style="background:rgba(0,0,0,0.2); border-radius:10px; padding:10px; font-size:12px;">
+            ${toPersianNum(paidCount)} از ${toPersianNum(totalCount)} قسط پرداخت شده
+        </div>
     `;
-    const containerFull = document.getElementById('accounts-list-full');
-    containerFull.innerHTML = '';
-    state.accounts.forEach(acc => { const div = document.createElement('div'); div.className = 'account-manage-item'; div.innerHTML = generateItemHTML(acc); containerFull.appendChild(div); });
-    const containerOnboard = document.getElementById('onboard-accounts-list');
-    if(containerOnboard) { containerOnboard.innerHTML = ''; state.accounts.forEach(acc => { const div = document.createElement('div'); div.className = 'account-manage-item'; div.innerHTML = generateItemHTML(acc); containerOnboard.appendChild(div); }); }
+
+    // Render Timeline
+    const timeline = document.getElementById('loan-timeline');
+    timeline.innerHTML = '';
+    
+    loan.installments.forEach((inst, index) => {
+        const div = document.createElement('div');
+        div.className = `timeline-item ${inst.isPaid ? 'paid' : ''}`;
+        div.onclick = () => toggleInstallment(loan.id, index);
+        
+        div.innerHTML = `
+            <div class="timeline-point"></div>
+            <div class="timeline-date">${getPersianMonthName(inst.month)} ${toPersianNum(inst.year)}</div>
+            <div class="timeline-card">
+                <div class="timeline-header">
+                    <span class="timeline-title">قسط ${toPersianNum(inst.id)}</span>
+                    <span class="timeline-amount">${formatMoney(inst.amount)}</span>
+                </div>
+                <div class="timeline-status">
+                    ${inst.isPaid ? '<i class="material-icons" style="font-size:12px">check_circle</i> پرداخت شده' : '<i class="material-icons" style="font-size:12px">radio_button_unchecked</i> پرداخت نشده'}
+                </div>
+            </div>
+        `;
+        timeline.appendChild(div);
+    });
 }
 
-window.openCategoriesModal = function() {
-    const container = document.getElementById('categories-list');
-    container.innerHTML = '';
-    const tagCounts = {};
-    state.transactions.forEach(t => (t.tags || []).forEach(tag => tagCounts[tag] = (tagCounts[tag] || 0) + 1));
-    const tags = Object.keys(tagCounts).sort();
-    if (tags.length === 0) container.innerHTML = '<div class="empty-state"><i class="material-icons">label_off</i><br>دسته بندی وجود ندارد</div>';
-    else tags.forEach(tag => {
-        const div = document.createElement('div');
-        div.className = 'account-manage-item';
-        div.innerHTML = `<div style="display:flex; align-items:center; gap:10px;"><div class="account-icon" style="background:rgba(255,255,255,0.1)"><i class="material-icons">label</i></div><div><div style="font-weight:700">${tag}</div><div style="font-size:12px; color:rgba(255,255,255,0.6)">${toPersianNum(tagCounts[tag])} تراکنش</div></div></div><div class="account-actions"><i class="material-icons" onclick="deleteTag('${tag}')">delete</i></div>`;
-        container.appendChild(div);
-    });
-    document.getElementById('modal-categories').style.display = 'flex';
+window.toggleInstallment = function(loanId, instIndex) {
+    const loan = state.loans.find(l => l.id === loanId);
+    if(loan) {
+        loan.installments[instIndex].isPaid = !loan.installments[instIndex].isPaid;
+        saveData();
+    }
 }
+
+window.deleteLoan = function(id) {
+    showConfirm('حذف وام', 'آیا از حذف این وام و تاریخچه اقساط آن مطمئن هستید؟', () => {
+        state.loans = state.loans.filter(l => l.id !== id);
+        saveData();
+        showToast('وام حذف شد', 'success');
+        switchView('loans');
+    });
+}
+
+// --- STANDARD FUNCTIONS (Same as before) ---
+window.nextOnboarding = function() { document.getElementById('slide-welcome').classList.remove('active'); document.getElementById('slide-setup').classList.add('active'); }
+window.prevOnboarding = function() { document.getElementById('slide-setup').classList.remove('active'); document.getElementById('slide-welcome').classList.add('active'); }
+window.finishOnboarding = function() { localStorage.setItem('paydo_setup_complete', 'true'); document.getElementById('onboarding-screen').style.transition = 'opacity 0.5s'; document.getElementById('onboarding-screen').style.opacity = '0'; document.getElementById('app-container').style.opacity = '1'; setTimeout(() => { document.getElementById('onboarding-screen').style.display = 'none'; }, 500); }
+window.openAccountSelect = function(inputId, title) { const listContainer = document.getElementById('selection-list'); listContainer.innerHTML = ''; document.getElementById('selection-title').innerText = title; state.accounts.forEach(acc => { const item = document.createElement('div'); item.className = 'selection-item'; item.innerHTML = `<i class="material-icons">${acc.type === 'cash' ? 'account_balance_wallet' : 'credit_card'}</i><div><div style="font-weight:500">${acc.name}</div><div style="font-size:11px; color:rgba(255,255,255,0.5)">${formatMoney(acc.balance)} تومان</div></div>`; item.onclick = () => { document.getElementById(inputId).value = acc.id; document.getElementById('trigger-' + inputId).innerText = acc.name; document.getElementById('trigger-' + inputId).style.color = '#fff'; closeModal('modal-selection'); }; listContainer.appendChild(item); }); document.getElementById('modal-selection').style.display = 'flex'; }
+window.openTypeSelect = function() { const listContainer = document.getElementById('selection-list'); listContainer.innerHTML = ''; document.getElementById('selection-title').innerText = 'نوع حساب'; [{val: 'card', name: 'کارت بانکی', icon: 'credit_card'}, {val: 'cash', name: 'کیف پول نقدی', icon: 'account_balance_wallet'}].forEach(t => { const item = document.createElement('div'); item.className = 'selection-item'; item.innerHTML = `<i class="material-icons">${t.icon}</i><div>${t.name}</div>`; item.onclick = () => { document.getElementById('acc-type').value = t.val; document.getElementById('trigger-acc-type').innerText = t.name; closeModal('modal-selection'); }; listContainer.appendChild(item); }); document.getElementById('modal-selection').style.display = 'flex'; }
+function renderDashboard() { const total = state.accounts.reduce((sum, acc) => sum + acc.balance, 0); document.getElementById('total-balance').innerHTML = `${formatMoney(total)} <span class="currency">تومان</span>`; const accountsContainer = document.getElementById('accounts-container'); accountsContainer.innerHTML = ''; if (state.accounts.length === 0) accountsContainer.innerHTML = '<div style="color:white; opacity:0.7; padding:10px;">حسابی وجود ندارد</div>'; state.accounts.forEach(acc => { const el = document.createElement('div'); el.className = 'account-card'; el.innerHTML = `<div class="account-icon"><i class="material-icons">${acc.type === 'cash' ? 'account_balance_wallet' : 'credit_card'}</i></div><div class="account-name">${acc.name}</div><div class="account-balance">${formatMoney(acc.balance)}</div>`; accountsContainer.appendChild(el); }); const recentContainer = document.getElementById('recent-transactions'); recentContainer.innerHTML = ''; const recent = [...state.transactions].sort((a,b) => b.timestamp - a.timestamp).slice(0, 5); if (recent.length === 0) recentContainer.innerHTML = '<div class="empty-state"><i class="material-icons">receipt</i><br>تراکنشی ثبت نشده</div>'; else recent.forEach(t => recentContainer.appendChild(createTransactionEl(t))); }
+function renderHistory(filterText = '') { const container = document.getElementById('all-transactions'); container.innerHTML = ''; const all = [...state.transactions].sort((a,b) => b.timestamp - a.timestamp); const filtered = all.filter(t => t.title.includes(filterText) || t.amount.toString().includes(filterText) || toPersianNum(t.amount).includes(filterText) || (t.tags && t.tags.some(tag => tag.includes(filterText)))); if (filtered.length === 0) container.innerHTML = '<div class="empty-state"><i class="material-icons">search_off</i><br>تراکنشی یافت نشد</div>'; else filtered.forEach(t => container.appendChild(createTransactionEl(t))); }
+function createTransactionEl(t) { const div = document.createElement('div'); div.className = 'transaction-item'; let iconClass = '', icon = 'help_outline', amountColorClass = '', sign = ''; if (t.type === 'expense') { icon = 'trending_down'; iconClass = 'bg-expense'; amountColorClass = 'expense'; sign = '-'; } else if (t.type === 'income') { icon = 'trending_up'; iconClass = 'bg-income'; amountColorClass = 'income'; sign = '+'; } else { icon = 'swap_horiz'; iconClass = 'bg-transfer'; amountColorClass = 'transfer'; sign = ''; } const tagsHtml = (t.tags || []).join(' '); div.innerHTML = ` <div class="trans-icon-box ${iconClass}"><i class="material-icons">${icon}</i></div> <div class="trans-details"> <div class="trans-title">${t.title}</div> <div class="trans-meta"><i class="material-icons" style="font-size:12px">account_balance_wallet</i> ${getAccountName(t.accountId)} ${t.targetAccountId ? `<i class="material-icons" style="font-size:12px; margin-right:5px">arrow_back</i> ${getAccountName(t.targetAccountId)}` : ''} <span style="margin: 0 5px">•</span> ${toPersianNum(t.date)}</div> ${tagsHtml ? `<div style="font-size:11px; color:rgba(255,255,255,0.5); margin-top:4px;">${tagsHtml}</div>` : ''} </div> <div class="trans-amount ${amountColorClass}">${sign}${formatMoney(t.amount)}</div>`; return div; }
+function renderAccountsList() { const generateItemHTML = (acc) => ` <div style="display:flex; align-items:center; gap:10px;"> <div class="account-icon" style="background:rgba(255,255,255,0.1)"><i class="material-icons">${acc.type === 'cash' ? 'account_balance_wallet' : 'credit_card'}</i></div> <div><div style="font-weight:700">${acc.name}</div><div style="font-size:12px; color:rgba(255,255,255,0.6)">موجودی: ${formatMoney(acc.balance)}</div></div> </div> <div class="account-actions"><i class="material-icons" onclick="openEditAccountModal(${acc.id})">edit</i><i class="material-icons" onclick="deleteAccount(${acc.id})">delete</i></div> `; const containerFull = document.getElementById('accounts-list-full'); containerFull.innerHTML = ''; state.accounts.forEach(acc => { const div = document.createElement('div'); div.className = 'account-manage-item'; div.innerHTML = generateItemHTML(acc); containerFull.appendChild(div); }); const containerOnboard = document.getElementById('onboard-accounts-list'); if(containerOnboard) { containerOnboard.innerHTML = ''; state.accounts.forEach(acc => { const div = document.createElement('div'); div.className = 'account-manage-item'; div.innerHTML = generateItemHTML(acc); containerOnboard.appendChild(div); }); } }
+window.openCategoriesModal = function() { const container = document.getElementById('categories-list'); container.innerHTML = ''; const tagCounts = {}; state.transactions.forEach(t => (t.tags || []).forEach(tag => tagCounts[tag] = (tagCounts[tag] || 0) + 1)); const tags = Object.keys(tagCounts).sort(); if (tags.length === 0) container.innerHTML = '<div class="empty-state"><i class="material-icons">label_off</i><br>دسته بندی وجود ندارد</div>'; else tags.forEach(tag => { const div = document.createElement('div'); div.className = 'account-manage-item'; div.innerHTML = `<div style="display:flex; align-items:center; gap:10px;"><div class="account-icon" style="background:rgba(255,255,255,0.1)"><i class="material-icons">label</i></div><div><div style="font-weight:700">${tag}</div><div style="font-size:12px; color:rgba(255,255,255,0.6)">${toPersianNum(tagCounts[tag])} تراکنش</div></div></div><div class="account-actions"><i class="material-icons" onclick="deleteTag('${tag}')">delete</i></div>`; container.appendChild(div); }); document.getElementById('modal-categories').style.display = 'flex'; }
 window.deleteTag = function(tag) { showConfirm('حذف دسته‌بندی', `آیا از حذف ${tag} مطمئن هستید؟`, () => { let modified = false; state.transactions.forEach(t => { if (t.tags && t.tags.includes(tag)) { t.tags = t.tags.filter(x => x !== tag); if (t.tags.length === 0) t.tags = ['#سایر']; modified = true; } }); if (modified) { saveData(); window.openCategoriesModal(); showToast('دسته‌بندی حذف شد', 'success'); } }); }
 function getAccountName(id) { const acc = state.accounts.find(a => a.id == id); return acc ? acc.name : 'حذف شده'; }
 function calculateStorage() { let total = 0; for (let x in localStorage) { if (Object.prototype.hasOwnProperty.call(localStorage, x)) total += (localStorage[x].length + x.length) * 2; } document.getElementById('storage-usage').innerText = `فضای اشغال شده: ${toPersianNum((total / 1024).toFixed(2))} کیلوبایت`; }
@@ -296,9 +324,9 @@ window.deleteAccount = function(id) { if(state.accounts.length <= 1) { showToast
 window.filterTransactions = function() { renderHistory(document.getElementById('transaction-search').value); }
 window.openAddTransactionModal = function() { if(!document.getElementById('trans-account').value) document.getElementById('trigger-trans-account').innerText = 'انتخاب کنید...'; document.getElementById('modal-transaction').style.display = 'flex'; }
 window.closeModal = function(id) { document.getElementById(id).style.display = 'none'; }
-// --- BUDGET ---
-window.changeBudgetMonth = function(dir) { state.budgetMonthOffset += dir; renderBudget(); }
-window.setBudgetTab = function(type) { state.budgetType = type; document.getElementById('tab-budget-expense').classList.toggle('active', type === 'expense'); document.getElementById('tab-budget-income').classList.toggle('active', type === 'income'); renderBudget(); }
-function renderBudget() { const now = new Date(); const targetDate = new Date(now.getFullYear(), now.getMonth() + state.budgetMonthOffset, 15); const targetParts = getPersianDateParts(targetDate.getTime()); document.getElementById('budget-month-label').innerText = `${getPersianMonthName(targetParts.month)} ${toPersianNum(targetParts.year)}`; const filtered = state.transactions.filter(t => { if (t.type !== state.budgetType) return false; const pDate = getPersianDateParts(t.timestamp || Date.now()); return pDate.year === targetParts.year && pDate.month === targetParts.month; }); const total = filtered.reduce((sum, t) => sum + t.amount, 0); document.getElementById('budget-total-amount').innerHTML = `${formatMoney(total)} <span style="font-size:16px; font-weight:400">تومان</span>`; document.getElementById('budget-total-label').innerText = state.budgetType === 'expense' ? 'مجموع هزینه ماه' : 'مجموع درآمد ماه'; const daysInMonth = (targetParts.month <= 6) ? 31 : (targetParts.month === 12 ? 29 : 30); const dailySums = new Array(daysInMonth + 1).fill(0); filtered.forEach(t => { const pDate = getPersianDateParts(t.timestamp || Date.now()); if(pDate.day <= daysInMonth) dailySums[pDate.day] += t.amount; }); const maxVal = Math.max(...dailySums) || 1; const chartContainer = document.getElementById('chart-bars-area'); chartContainer.innerHTML = ''; for (let day = 1; day <= daysInMonth; day++) { const amount = dailySums[day]; const heightPercent = (amount / maxVal) * 100; const bar = document.createElement('div'); bar.className = 'chart-bar' + (amount === 0 ? ' empty' : ''); bar.style.height = heightPercent + '%'; bar.addEventListener('click', () => { document.querySelectorAll('.chart-bar').forEach(b => b.classList.remove('active')); bar.classList.add('active'); const tooltip = document.getElementById('chart-tooltip'); tooltip.innerHTML = `${toPersianNum(day)} ${getPersianMonthName(targetParts.month)}<br><b>${formatMoney(amount)} تومان</b>`; tooltip.style.opacity = '1'; const rect = bar.getBoundingClientRect(); const containerRect = chartContainer.parentElement.getBoundingClientRect(); tooltip.style.left = (rect.left - containerRect.left + (rect.width / 2)) + 'px'; tooltip.style.top = (rect.top - containerRect.top) + 'px'; }); chartContainer.appendChild(bar); } document.addEventListener('click', (e) => { if(!e.target.closest('.chart-bar')) { document.getElementById('chart-tooltip').style.opacity = '0'; document.querySelectorAll('.chart-bar').forEach(b => b.classList.remove('active')); }}); const catMap = {}; filtered.forEach(t => (t.tags && t.tags.length > 0 ? t.tags : ['#سایر']).forEach(tag => catMap[tag] = (catMap[tag] || 0) + t.amount)); const catList = Object.keys(catMap).map(key => ({ tag: key, amount: catMap[key] })).sort((a, b) => b.amount - a.amount); const listContainer = document.getElementById('budget-categories-list'); listContainer.innerHTML = ''; if(catList.length === 0) listContainer.innerHTML = '<div style="text-align:center; color:rgba(255,255,255,0.4); padding:20px;">داده‌ای برای نمایش وجود ندارد</div>'; else { const maxCat = catList[0].amount; catList.forEach(c => { const div = document.createElement('div'); div.className = 'cat-row'; div.innerHTML = `<div class="cat-header"><div class="cat-name"><i class="material-icons" style="font-size:16px; opacity:0.7">label</i> ${c.tag}</div><div class="cat-amount">${formatMoney(c.amount)} <span style="font-weight:400; font-size:10px;">تومان</span></div></div><div style="display:flex; align-items:center; gap:10px;"><div class="cat-progress-bg"><div class="cat-progress-fill" style="width: ${((c.amount / maxCat) * 100)}%"></div></div><div style="font-size:11px; width:25px; text-align:left;">%${toPersianNum(((c.amount / total) * 100).toFixed(0))}</div></div>`; listContainer.appendChild(div); }); } }
-window.openAccountSelect = function(inputId, title) { const listContainer = document.getElementById('selection-list'); listContainer.innerHTML = ''; document.getElementById('selection-title').innerText = title; state.accounts.forEach(acc => { const item = document.createElement('div'); item.className = 'selection-item'; item.innerHTML = `<i class="material-icons">${acc.type === 'cash' ? 'account_balance_wallet' : 'credit_card'}</i><div><div style="font-weight:500">${acc.name}</div><div style="font-size:11px; color:rgba(255,255,255,0.5)">${formatMoney(acc.balance)} تومان</div></div>`; item.onclick = () => { document.getElementById(inputId).value = acc.id; document.getElementById('trigger-' + inputId).innerText = acc.name; document.getElementById('trigger-' + inputId).style.color = '#fff'; closeModal('modal-selection'); }; listContainer.appendChild(item); }); document.getElementById('modal-selection').style.display = 'flex'; }
-window.openTypeSelect = function() { const listContainer = document.getElementById('selection-list'); listContainer.innerHTML = ''; document.getElementById('selection-title').innerText = 'نوع حساب'; [{val: 'card', name: 'کارت بانکی', icon: 'credit_card'}, {val: 'cash', name: 'کیف پول نقدی', icon: 'account_balance_wallet'}].forEach(t => { const item = document.createElement('div'); item.className = 'selection-item'; item.innerHTML = `<i class="material-icons">${t.icon}</i><div>${t.name}</div>`; item.onclick = () => { document.getElementById('acc-type').value = t.val; document.getElementById('trigger-acc-type').innerText = t.name; closeModal('modal-selection'); }; listContainer.appendChild(item); }); document.getElementById('modal-selection').style.display = 'flex'; }
+// --- ASSETS ---
+function renderAssets() { const container = document.getElementById('assets-list-container'); container.innerHTML = ''; let totalAssets = 0; if (state.assets.length === 0) { container.innerHTML = '<div class="empty-state"><i class="material-icons">monetization_on</i><br>دارایی ثبت نشده</div>'; } else { state.assets.forEach(asset => { totalAssets += asset.value; const div = document.createElement('div'); div.className = 'account-manage-item'; div.innerHTML = ` <div style="display:flex; align-items:center; gap:10px;"> <div class="account-icon" style="background:rgba(255,215,0,0.15); color:#ffd700;"> <i class="material-icons">savings</i> </div> <div> <div style="font-weight:700">${asset.name}</div> <div style="font-size:12px; color:rgba(255,255,255,0.6)">ارزش: ${formatMoney(asset.value)} تومان</div> </div> </div> <div class="account-actions"> <i class="material-icons" onclick="openEditAssetModal(${asset.id})">edit</i> <i class="material-icons" onclick="deleteAsset(${asset.id})">delete</i> </div> `; container.appendChild(div); }); } document.getElementById('total-assets-value').innerHTML = `${formatMoney(totalAssets)} <span class="currency">تومان</span>`; }
+window.openAddAssetModal = function() { editingAssetId = null; document.getElementById('modal-asset-title').innerText = 'افزودن دارایی'; document.getElementById('btn-save-asset').innerText = 'ذخیره دارایی'; document.getElementById('form-asset').reset(); document.getElementById('modal-asset').style.display = 'flex'; }
+window.openEditAssetModal = function(id) { editingAssetId = id; const asset = state.assets.find(a => a.id === id); if(!asset) return; document.getElementById('modal-asset-title').innerText = 'ویرایش دارایی'; document.getElementById('btn-save-asset').innerText = 'ذخیره تغییرات'; document.getElementById('asset-name').value = asset.name; document.getElementById('asset-value').value = formatMoney(asset.value); document.getElementById('modal-asset').style.display = 'flex'; }
+function saveAsset(e) { e.preventDefault(); const name = document.getElementById('asset-name').value; const value = cleanNumber(document.getElementById('asset-value').value); if (editingAssetId) { const idx = state.assets.findIndex(a => a.id === editingAssetId); if(idx !== -1) { state.assets[idx].name = name; state.assets[idx].value = value; showToast('دارایی ویرایش شد', 'success'); } } else { state.assets.push({ id: Date.now(), name: name, value: value }); showToast('دارایی جدید افزوده شد', 'success'); } saveData(); closeModal('modal-asset'); document.getElementById('form-asset').reset(); }
+window.deleteAsset = function(id) { showConfirm('حذف دارایی', 'آیا از حذف این دارایی مطمئن هستید؟', () => { state.assets = state.assets.filter(a => a.id !== id); saveData(); showToast('دارایی حذف شد', 'success'); }); }

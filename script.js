@@ -112,16 +112,6 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('btn-delete-loan').addEventListener('click', () => {
                  if(currentLoanId) deleteLoan(currentLoanId);
             });
-            
-            // Init default dates for report
-            const now = new Date();
-            const pDate = getPersianDateParts(now.getTime());
-            document.getElementById('rep-start-year').value = pDate.year;
-            document.getElementById('rep-start-month').value = pDate.month;
-            document.getElementById('rep-start-day').value = 1;
-            document.getElementById('rep-end-year').value = pDate.year;
-            document.getElementById('rep-end-month').value = pDate.month;
-            document.getElementById('rep-end-day').value = 30;
 
             setTimeout(() => {
                 renderDashboard();
@@ -177,129 +167,6 @@ function setupInputFormatters() {
     });
 }
 
-// --- REPORT GENERATION (DIRECT DOWNLOAD) ---
-window.setReportDate = function(mode) {
-    const now = new Date();
-    const pDate = getPersianDateParts(now.getTime());
-    let sy, sm, sd, ey, em, ed;
-    
-    if(mode === 'thisMonth') {
-        sy = pDate.year; sm = pDate.month; sd = 1;
-        ey = pDate.year; em = pDate.month; ed = (sm <= 6) ? 31 : (sm === 12 ? 29 : 30);
-    } else if (mode === 'lastMonth') {
-        if(pDate.month === 1) { sy = pDate.year - 1; sm = 12; } else { sy = pDate.year; sm = pDate.month - 1; }
-        sd = 1;
-        ey = sy; em = sm; ed = (sm <= 6) ? 31 : (sm === 12 ? 29 : 30);
-    }
-    
-    document.getElementById('rep-start-year').value = sy;
-    document.getElementById('rep-start-month').value = sm;
-    document.getElementById('rep-start-day').value = sd;
-    document.getElementById('rep-end-year').value = ey;
-    document.getElementById('rep-end-month').value = em;
-    document.getElementById('rep-end-day').value = ed;
-}
-
-window.generateReport = function() {
-    // 1. Get Dates
-    const sY = parseInt(document.getElementById('rep-start-year').value);
-    const sM = parseInt(document.getElementById('rep-start-month').value);
-    const sD = parseInt(document.getElementById('rep-start-day').value);
-    const eY = parseInt(document.getElementById('rep-end-year').value);
-    const eM = parseInt(document.getElementById('rep-end-month').value);
-    const eD = parseInt(document.getElementById('rep-end-day').value);
-
-    // Create comparable numbers YYYYMMDD
-    const startDateNum = sY * 10000 + sM * 100 + sD;
-    const endDateNum = eY * 10000 + eM * 100 + eD;
-
-    // 2. Filter Transactions
-    const filtered = state.transactions.filter(t => {
-        const pd = getPersianDateParts(t.timestamp);
-        const tDateNum = pd.year * 10000 + pd.month * 100 + pd.day;
-        return tDateNum >= startDateNum && tDateNum <= endDateNum;
-    });
-
-    if(filtered.length === 0) {
-        showToast('تراکنشی در این بازه یافت نشد', 'error');
-        return;
-    }
-
-    // 3. Stats
-    let sumIncome = 0, sumExpense = 0, maxIncome = 0, maxExpense = 0;
-    filtered.forEach(t => {
-        if(t.type === 'income') {
-            sumIncome += t.amount;
-            if(t.amount > maxIncome) maxIncome = t.amount;
-        } else if(t.type === 'expense') {
-            sumExpense += t.amount;
-            if(t.amount > maxExpense) maxExpense = t.amount;
-        }
-    });
-
-    // 4. Generate HTML
-    filtered.sort((a,b) => b.timestamp - a.timestamp);
-    
-    let tableRows = '';
-    filtered.forEach(t => {
-        const pd = getPersianDateParts(t.timestamp);
-        const typeStr = (t.type === 'expense') ? 'خرج' : ((t.type === 'income') ? 'واریزی' : 'انتقال');
-        tableRows += `
-            <tr>
-                <td>${toPersianNum(pd.year)}/${toPersianNum(pd.month)}/${toPersianNum(pd.day)}</td>
-                <td>${typeStr}</td>
-                <td>${t.tags && t.tags.length ? t.tags.join(' ') : '-'}</td>
-                <td>${t.title}</td>
-                <td>${formatMoney(t.amount)}</td>
-            </tr>
-        `;
-    });
-
-    const pdfContainer = document.getElementById('pdf-container');
-    pdfContainer.innerHTML = `
-        <div class="pdf-header">
-            <div class="pdf-title">گزارش دفتر خرج</div>
-            <div class="pdf-subtitle">از ${toPersianNum(sY)}/${toPersianNum(sM)}/${toPersianNum(sD)} تا ${toPersianNum(eY)}/${toPersianNum(eM)}/${toPersianNum(eD)}</div>
-        </div>
-        
-        <table class="pdf-table">
-            <thead>
-                <tr>
-                    <th>تاریخ</th>
-                    <th>نوع</th>
-                    <th>دسته‌بندی</th>
-                    <th>عنوان</th>
-                    <th>مبلغ</th>
-                </tr>
-            </thead>
-            <tbody>${tableRows}</tbody>
-        </table>
-
-        <div class="pdf-summary">
-            <div class="pdf-summary-row"><span>تعداد آیتم</span><span>${toPersianNum(filtered.length)}</span></div>
-            <div class="pdf-summary-row"><span>جمع واریزی‌ها</span><span>${formatMoney(sumIncome)}</span></div>
-            <div class="pdf-summary-row"><span>جمع خرج‌ها</span><span>${formatMoney(sumExpense)}</span></div>
-            <div class="pdf-summary-row"><span>خالص (واریزی - خرج)</span><span>${formatMoney(sumIncome - sumExpense)}</span></div>
-            <div class="pdf-summary-row"><span>بیشترین واریزی</span><span>${formatMoney(maxIncome)}</span></div>
-            <div class="pdf-summary-row"><span>بیشترین خرج</span><span>${formatMoney(maxExpense)}</span></div>
-        </div>
-    `;
-
-    // 5. Generate PDF
-    const opt = {
-        margin: 10,
-        filename: `Report_${sY}-${sM}-${sD}_to_${eY}-${eM}-${eD}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-
-    html2pdf().set(opt).from(pdfContainer).save().then(() => {
-        showToast('فایل گزارش دانلود شد', 'success');
-        pdfContainer.innerHTML = ''; // Clear after done
-    });
-}
-
 // --- NAVIGATION ---
 function switchView(viewName) {
     document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
@@ -311,7 +178,7 @@ function switchView(viewName) {
     if (viewName === 'dashboard') navId = 'nav-dashboard';
     if (viewName === 'history' || viewName === 'budget') navId = 'nav-history'; 
     if (viewName === 'settings' || viewName === 'accounts') navId = 'nav-settings';
-    if (viewName === 'assets' || viewName === 'loans' || viewName === 'loan-details' || viewName === 'tools' || viewName === 'report') navId = 'nav-tools';
+    if (viewName === 'assets' || viewName === 'loans' || viewName === 'loan-details' || viewName === 'tools') navId = 'nav-tools';
     
     const navItem = document.getElementById(navId);
     if(navItem) navItem.classList.add('active');

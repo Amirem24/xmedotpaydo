@@ -212,25 +212,5 @@ main::-webkit-scrollbar { display: none; }
 
 .log-terminal { background: #000; color: #00e676; font-family: monospace; padding: 10px; border-radius: 10px; height: 85%; overflow-y: auto; font-size: 11px; white-space: pre-wrap; direction: ltr; text-align: left; }
 
-.date-picker-row { display: flex; align-items: center; justify-content: center; gap: 8px; background: rgba(255,255,255,0.1); border-radius: 12px; padding: 8px; }
-.date-input { text-align: center; border: none; background: transparent; padding: 5px; font-size: 20px; font-weight: 700; }
-.date-icon { background: #40c4ff; border-radius: 8px; padding: 8px; display: flex; align-items: center; justify-content: center; }
-.quick-dates { display: flex; gap: 10px; margin-top: 20px; margin-bottom: 20px; }
-.quick-date-btn { flex: 1; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 10px; text-align: center; font-size: 12px; cursor: pointer; border: 1px solid transparent; transition: all 0.2s; }
-.quick-date-btn:active { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.3); }
-
 /* --- BUTTON FIX --- */
 .btn-text-action { background: none; border: none; color: var(--accent); font-size: 12px; cursor: pointer; font-family: 'Vazirmatn', sans-serif; font-weight: 500; }
-
-/* --- PDF RENDER STYLES --- */
-#pdf-container { background: #fff; color: #000; font-family: 'Vazirmatn', sans-serif; direction: rtl; padding: 20px; width: 210mm; /* A4 width */ }
-.pdf-header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #eee; padding-bottom: 20px; }
-.pdf-title { font-size: 24px; font-weight: 900; margin-bottom: 10px; }
-.pdf-subtitle { font-size: 14px; color: #666; }
-.pdf-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 12px; }
-.pdf-table th, .pdf-table td { border: 1px solid #eee; padding: 10px; text-align: center; }
-.pdf-table th { background: #f8f9fa; font-weight: 700; color: #333; }
-.pdf-table tr:nth-child(even) { background: #fcfcfc; }
-.pdf-summary { border: 1px solid #eee; border-radius: 15px; padding: 20px; background: #f8f9fa; display: flex; flex-direction: column; gap: 10px; width: 60%; margin: 0 auto; page-break-inside: avoid; }
-.pdf-summary-row { display: flex; justify-content: space-between; border-bottom: 1px dashed #ddd; padding-bottom: 8px; font-size: 13px; }
-.pdf-summary-row:last-child { border-bottom: none; }

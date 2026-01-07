@@ -72,6 +72,12 @@ main::-webkit-scrollbar { display: none; }
 .bg-income { background: rgba(0, 230, 118, 0.2); color: var(--success); }
 .bg-expense { background: rgba(255, 82, 82, 0.2); color: var(--danger); }
 .bg-transfer { background: rgba(255, 171, 64, 0.2); color: var(--warning); }
+
+/* Dashboard Compact List (NEW) */
+.dashboard-list .trans-meta { display: none; }
+.dashboard-list .trans-title { margin-bottom: 0; }
+.dashboard-list .transaction-item { padding: 12px 15px; }
+
 .bottom-nav { position: absolute; bottom: 0; width: 100%; height: 80px; background: rgba(20, 20, 20, 0.6); backdrop-filter: blur(20px); display: flex; justify-content: space-around; align-items: center; border-top: 1px solid var(--glass-border); z-index: 100; padding-bottom: 10px; }
 .nav-item { display: flex; flex-direction: column; align-items: center; color: var(--text-muted); cursor: pointer; transition: color 0.3s; gap: 4px; }
 .nav-item.active { color: #fff; }
@@ -167,7 +173,8 @@ main::-webkit-scrollbar { display: none; }
 .loan-progress-fill { height: 100%; background: var(--warning); border-radius: 3px; }
 .loan-progress-text { font-size: 11px; display: flex; justify-content: space-between; color: var(--text-muted); }
 
-.fab-add-float { position: fixed; bottom: 100px; left: 20px; width: 55px; height: 55px; background: var(--warning); border-radius: 50%; display: flex; justify-content: center; align-items: center; color: #fff; box-shadow: 0 5px 15px rgba(255, 171, 64, 0.4); border: none; cursor: pointer; transition: transform 0.2s; z-index: 100; }
+/* Fixed FAB (BUG FIX) */
+.fab-add-float { position: fixed; bottom: 100px; left: 20px; width: 55px; height: 55px; background: var(--warning); border-radius: 50%; display: flex; justify-content: center; align-items: center; color: #fff; box-shadow: 0 5px 15px rgba(255, 171, 64, 0.4); border: none; cursor: pointer; z-index: 100; transform: none; }
 .fab-add-float:active { transform: scale(0.95); }
 
 /* Timeline */
@@ -184,3 +191,6 @@ main::-webkit-scrollbar { display: none; }
 .timeline-status { font-size: 10px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
 .timeline-item.paid .timeline-status { color: var(--success); }
 .loan-summary-card { background: linear-gradient(135deg, #006064 0%, #00838f 100%); border-radius: 20px; padding: 25px; text-align: center; margin-bottom: 25px; box-shadow: 0 8px 32px rgba(0, 96, 100, 0.4); }
+
+/* Logs Terminal (NEW) */
+.log-terminal { background: #000; color: #00e676; font-family: monospace; padding: 10px; border-radius: 10px; height: 85%; overflow-y: auto; font-size: 11px; white-space: pre-wrap; direction: ltr; text-align: left; }

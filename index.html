@@ -10,6 +10,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;300;400;500;700;900&display=swap" rel="stylesheet">
     <meta name="theme-color" content="#5b73e8">
     <link rel="icon" type="image/png" href="icon.png">
+    <!-- PDF Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 
@@ -93,9 +95,8 @@
         <div id="view-tools" class="view-section">
             <div class="section-title" style="margin-top: 10px;">ابزارها</div>
             
-            <!-- NEW REPORT TOOL -->
-             <div class="settings-group">
-                <div class="settings-item" onclick="openReportModal()" style="cursor: pointer; margin-bottom: 0;">
+            <div class="settings-group">
+                <div class="settings-item" onclick="switchView('report')" style="cursor: pointer; margin-bottom: 0;">
                     <div class="settings-icon" style="color:#00e676"><i class="material-icons">description</i></div>
                     <div class="settings-info">
                         <h4>دریافت گزارش</h4>
@@ -125,6 +126,54 @@
                     </div>
                     <i class="material-icons" style="margin-right:auto; color:rgba(255,255,255,0.5)">chevron_left</i>
                 </div>
+            </div>
+        </div>
+
+        <!-- REPORT VIEW (NEW Full Page) -->
+        <div id="view-report" class="view-section">
+            <div class="section-title" style="margin-top: 10px; cursor: pointer;" onclick="switchView('tools')">
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <i class="material-icons">arrow_forward</i>
+                    <span>بازگشت به ابزارها</span>
+                </div>
+            </div>
+
+            <div class="balance-card" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+                <div class="balance-label">تنظیمات گزارش</div>
+                <div style="font-size: 13px; opacity: 0.9; margin-top: 5px;">بازه زمانی مورد نظر را انتخاب کنید</div>
+            </div>
+
+            <div class="settings-group">
+                <div style="margin-bottom: 20px;">
+                    <label class="form-label" style="text-align: center; margin-bottom: 10px;">از تاریخ</label>
+                    <div class="date-picker-row">
+                        <input type="number" id="rep-start-year" class="form-input date-input" placeholder="1403">
+                        <span style="font-size: 20px; opacity: 0.5;">/</span>
+                        <input type="number" id="rep-start-month" class="form-input date-input" placeholder="01">
+                        <span style="font-size: 20px; opacity: 0.5;">/</span>
+                        <input type="number" id="rep-start-day" class="form-input date-input" placeholder="01">
+                        <div class="date-icon"><i class="material-icons">event</i></div>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 25px;">
+                    <label class="form-label" style="text-align: center; margin-bottom: 10px;">تا تاریخ</label>
+                    <div class="date-picker-row">
+                        <input type="number" id="rep-end-year" class="form-input date-input" placeholder="1403">
+                        <span style="font-size: 20px; opacity: 0.5;">/</span>
+                        <input type="number" id="rep-end-month" class="form-input date-input" placeholder="10">
+                        <span style="font-size: 20px; opacity: 0.5;">/</span>
+                        <input type="number" id="rep-end-day" class="form-input date-input" placeholder="30">
+                        <div class="date-icon"><i class="material-icons">event</i></div>
+                    </div>
+                </div>
+
+                <div class="quick-dates">
+                    <div class="quick-date-btn" onclick="setReportDate('thisMonth')">همین ماه</div>
+                    <div class="quick-date-btn" onclick="setReportDate('lastMonth')">ماه گذشته</div>
+                </div>
+
+                <button class="btn-primary" onclick="generateReport()">دانلود فایل PDF</button>
             </div>
         </div>
 
@@ -182,7 +231,8 @@
 
             <div class="section-title" style="justify-content: space-between;">
                 <span>لیست اقساط</span>
-                <button onclick="openAddInstallmentModal()" style="background:none; border:none; color:var(--accent); font-size:12px; cursor:pointer;">+ افزودن قسط</button>
+                <!-- Corrected Font for Button -->
+                <button class="btn-text-action" onclick="openAddInstallmentModal()">+ افزودن قسط</button>
             </div>
             <div class="timeline-container" id="loan-timeline"></div>
             
@@ -352,52 +402,13 @@
         </div>
     </nav>
 
-    <!-- HIDDEN PRINT AREA -->
-    <div id="print-area"></div>
+    <!-- HIDDEN PDF GENERATION CONTAINER -->
+    <div id="pdf-container" style="display: none;"></div>
 
     <!-- TOAST CONTAINER -->
     <div class="toast-container" id="toast-container"></div>
 
     <!-- MODALS -->
-    
-    <!-- REPORT MODAL (NEW) -->
-    <div class="modal-overlay" id="modal-report">
-        <div class="modal-content">
-            <div class="modal-header"><h3>دریافت گزارش</h3><button class="close-modal" onclick="closeModal('modal-report')">&times;</button></div>
-            <div style="margin-bottom: 20px;">
-                <label class="form-label" style="text-align: center; margin-bottom: 10px;">از تاریخ</label>
-                <div class="date-picker-row">
-                    <input type="number" id="rep-start-year" class="form-input date-input" placeholder="1403">
-                    <span style="font-size: 20px; opacity: 0.5;">/</span>
-                    <input type="number" id="rep-start-month" class="form-input date-input" placeholder="01">
-                    <span style="font-size: 20px; opacity: 0.5;">/</span>
-                    <input type="number" id="rep-start-day" class="form-input date-input" placeholder="01">
-                    <div class="date-icon"><i class="material-icons">event</i></div>
-                </div>
-            </div>
-            
-            <div style="margin-bottom: 25px;">
-                <label class="form-label" style="text-align: center; margin-bottom: 10px;">تا تاریخ</label>
-                <div class="date-picker-row">
-                    <input type="number" id="rep-end-year" class="form-input date-input" placeholder="1403">
-                    <span style="font-size: 20px; opacity: 0.5;">/</span>
-                    <input type="number" id="rep-end-month" class="form-input date-input" placeholder="10">
-                    <span style="font-size: 20px; opacity: 0.5;">/</span>
-                    <input type="number" id="rep-end-day" class="form-input date-input" placeholder="30">
-                    <div class="date-icon"><i class="material-icons">event</i></div>
-                </div>
-            </div>
-
-            <div class="quick-dates">
-                <div class="quick-date-btn" onclick="setReportDate('thisMonth')">همین ماه</div>
-                <div class="quick-date-btn" onclick="setReportDate('lastMonth')">ماه گذشته</div>
-            </div>
-
-            <button class="btn-primary" onclick="generateReport()">دریافت فایل PDF گزارش</button>
-        </div>
-    </div>
-
-
     <div class="modal-overlay" id="modal-confirm" style="z-index: 2000;">
         <div class="modal-content">
             <div class="modal-header"><h3 id="confirm-title">عنوان تایید</h3></div>

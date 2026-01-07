@@ -112,6 +112,16 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('btn-delete-loan').addEventListener('click', () => {
                  if(currentLoanId) deleteLoan(currentLoanId);
             });
+            
+            // Init default dates for report
+            const now = new Date();
+            const pDate = getPersianDateParts(now.getTime());
+            document.getElementById('rep-start-year').value = pDate.year;
+            document.getElementById('rep-start-month').value = pDate.month;
+            document.getElementById('rep-start-day').value = 1;
+            document.getElementById('rep-end-year').value = pDate.year;
+            document.getElementById('rep-end-month').value = pDate.month;
+            document.getElementById('rep-end-day').value = 30;
 
             setTimeout(() => {
                 renderDashboard();
@@ -167,20 +177,7 @@ function setupInputFormatters() {
     });
 }
 
-// --- REPORT GENERATION ---
-window.openReportModal = function() {
-    const now = new Date();
-    const pDate = getPersianDateParts(now.getTime());
-    // Default to this month
-    document.getElementById('rep-start-year').value = pDate.year;
-    document.getElementById('rep-start-month').value = pDate.month;
-    document.getElementById('rep-start-day').value = 1;
-    document.getElementById('rep-end-year').value = pDate.year;
-    document.getElementById('rep-end-month').value = pDate.month;
-    document.getElementById('rep-end-day').value = 30; // Approximation
-    document.getElementById('modal-report').style.display = 'flex';
-}
-
+// --- REPORT GENERATION (DIRECT DOWNLOAD) ---
 window.setReportDate = function(mode) {
     const now = new Date();
     const pDate = getPersianDateParts(now.getTime());
@@ -212,7 +209,7 @@ window.generateReport = function() {
     const eM = parseInt(document.getElementById('rep-end-month').value);
     const eD = parseInt(document.getElementById('rep-end-day').value);
 
-    // Simple comparison logic (Convert to string YYYYMMDD for easier compare)
+    // Create comparable numbers YYYYMMDD
     const startDateNum = sY * 10000 + sM * 100 + sD;
     const endDateNum = eY * 10000 + eM * 100 + eD;
 
@@ -228,7 +225,7 @@ window.generateReport = function() {
         return;
     }
 
-    // 3. Calculate Stats
+    // 3. Stats
     let sumIncome = 0, sumExpense = 0, maxIncome = 0, maxExpense = 0;
     filtered.forEach(t => {
         if(t.type === 'income') {
@@ -241,10 +238,9 @@ window.generateReport = function() {
     });
 
     // 4. Generate HTML
-    let tableRows = '';
-    // Sort by date descending
     filtered.sort((a,b) => b.timestamp - a.timestamp);
     
+    let tableRows = '';
     filtered.forEach(t => {
         const pd = getPersianDateParts(t.timestamp);
         const typeStr = (t.type === 'expense') ? 'خرج' : ((t.type === 'income') ? 'واریزی' : 'انتقال');
@@ -259,14 +255,14 @@ window.generateReport = function() {
         `;
     });
 
-    const printArea = document.getElementById('print-area');
-    printArea.innerHTML = `
-        <div class="print-header">
-            <div class="print-title">گزارش دفتر خرج</div>
-            <div class="print-subtitle">از ${toPersianNum(sY)}/${toPersianNum(sM)}/${toPersianNum(sD)} تا ${toPersianNum(eY)}/${toPersianNum(eM)}/${toPersianNum(eD)}</div>
+    const pdfContainer = document.getElementById('pdf-container');
+    pdfContainer.innerHTML = `
+        <div class="pdf-header">
+            <div class="pdf-title">گزارش دفتر خرج</div>
+            <div class="pdf-subtitle">از ${toPersianNum(sY)}/${toPersianNum(sM)}/${toPersianNum(sD)} تا ${toPersianNum(eY)}/${toPersianNum(eM)}/${toPersianNum(eD)}</div>
         </div>
         
-        <table class="print-table">
+        <table class="pdf-table">
             <thead>
                 <tr>
                     <th>تاریخ</th>
@@ -276,23 +272,32 @@ window.generateReport = function() {
                     <th>مبلغ</th>
                 </tr>
             </thead>
-            <tbody>
-                ${tableRows}
-            </tbody>
+            <tbody>${tableRows}</tbody>
         </table>
 
-        <div class="print-summary">
-            <div class="print-summary-row"><span>تعداد آیتم</span><span>${toPersianNum(filtered.length)}</span></div>
-            <div class="print-summary-row"><span>جمع واریزی‌ها</span><span>${formatMoney(sumIncome)}</span></div>
-            <div class="print-summary-row"><span>جمع خرج‌ها</span><span>${formatMoney(sumExpense)}</span></div>
-            <div class="print-summary-row"><span>خالص (واریزی - خرج)</span><span>${formatMoney(sumIncome - sumExpense)}</span></div>
-            <div class="print-summary-row"><span>بیشترین واریزی</span><span>${formatMoney(maxIncome)}</span></div>
-            <div class="print-summary-row"><span>بیشترین خرج</span><span>${formatMoney(maxExpense)}</span></div>
+        <div class="pdf-summary">
+            <div class="pdf-summary-row"><span>تعداد آیتم</span><span>${toPersianNum(filtered.length)}</span></div>
+            <div class="pdf-summary-row"><span>جمع واریزی‌ها</span><span>${formatMoney(sumIncome)}</span></div>
+            <div class="pdf-summary-row"><span>جمع خرج‌ها</span><span>${formatMoney(sumExpense)}</span></div>
+            <div class="pdf-summary-row"><span>خالص (واریزی - خرج)</span><span>${formatMoney(sumIncome - sumExpense)}</span></div>
+            <div class="pdf-summary-row"><span>بیشترین واریزی</span><span>${formatMoney(maxIncome)}</span></div>
+            <div class="pdf-summary-row"><span>بیشترین خرج</span><span>${formatMoney(maxExpense)}</span></div>
         </div>
     `;
 
-    // 5. Print
-    window.print();
+    // 5. Generate PDF
+    const opt = {
+        margin: 10,
+        filename: `Report_${sY}-${sM}-${sD}_to_${eY}-${eM}-${eD}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(pdfContainer).save().then(() => {
+        showToast('فایل گزارش دانلود شد', 'success');
+        pdfContainer.innerHTML = ''; // Clear after done
+    });
 }
 
 // --- NAVIGATION ---
@@ -306,7 +311,7 @@ function switchView(viewName) {
     if (viewName === 'dashboard') navId = 'nav-dashboard';
     if (viewName === 'history' || viewName === 'budget') navId = 'nav-history'; 
     if (viewName === 'settings' || viewName === 'accounts') navId = 'nav-settings';
-    if (viewName === 'assets' || viewName === 'loans' || viewName === 'loan-details' || viewName === 'tools') navId = 'nav-tools';
+    if (viewName === 'assets' || viewName === 'loans' || viewName === 'loan-details' || viewName === 'tools' || viewName === 'report') navId = 'nav-tools';
     
     const navItem = document.getElementById(navId);
     if(navItem) navItem.classList.add('active');
@@ -404,7 +409,7 @@ function renderBudget() {
     }
 }
 
-// --- LOANS LOGIC ---
+// --- LOANS LOGIC (IMPROVED) ---
 function renderLoansList() {
     const container = document.getElementById('loans-list-container');
     container.innerHTML = '';
